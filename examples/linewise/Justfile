@@ -1,0 +1,13 @@
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+
+default: build
+
+prepare:
+    mkdir -p build dist
+
+build: prepare
+    cx --in data/message.txt --out build/message.upper -- bash -c 'tr "[:lower:]" "[:upper:]" < data/message.txt > build/message.upper'
+    cx --in build/message.upper --out dist/message.txt -- bash -c 'printf "Result: " > dist/message.txt; cat build/message.upper >> dist/message.txt'
+
+clean:
+    rm -rf build dist .cx
