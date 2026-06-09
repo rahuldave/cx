@@ -1,0 +1,17 @@
+/target/
+
+# cx runtime/cache state
+/.cx/graph.json
+/.cx/state.json
+/.cx/tmp/
+
+# Gest local project sync/cache
+/.gest/
+
+# OS/editor noise
+.DS_Store
+*.swp
+*.swo
+
+# Rust profiling/build byproducts
+*.profraw
