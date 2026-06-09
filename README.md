@@ -3,9 +3,14 @@
 `cx` is a fresh Rust CLI project for exploring a per-line incremental-execution
 overlay for `just`.
 
-The current design note is [`cx-spec.md`](cx-spec.md). It is preliminary: treat
-it as a proposal to evaluate and revise before turning it into a Gest-tracked
-implementation plan.
+The current design note is [`cx-spec.md`](cx-spec.md). It is still the broader
+proposal, but the repository now contains a first working MVP:
+
+- runtime `cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...` execution;
+- content-hash staleness records under `.cx/state.json`;
+- no-op logging to stderr as `up-to-date: <outputs>`;
+- `cx graph` and `cx lint` groundwork built from `just --dump --dump-format json`;
+- a linewise `just` example in [`examples/linewise`](examples/linewise).
 
 ## Repository Shape
 
@@ -22,21 +27,33 @@ just setup
 just verify
 ```
 
-The crate is intentionally only a scaffold right now. The next project session
-should first decide which parts of `cx-spec.md` are accepted, then create Gest
-tasks/specs before implementation.
+Run a single `cx` line directly:
+
+```bash
+cargo run -- --in input.txt --out output.txt -- cp input.txt output.txt
+```
+
+Run the example with `just`:
+
+```bash
+cargo build
+cd examples/linewise
+PATH="../../target/debug:$PATH" just build
+PATH="../../target/debug:$PATH" just build
+```
+
+The first example run writes `build/message.upper` and `dist/message.txt`. The
+second run still lets `just` execute the recipe chain, while each `cx` line
+short-circuits if its declared inputs, outputs, and command identity are fresh.
 
 ## Rust Preparation Checklist
 
 - Confirm the MSRV or accept the repo default stable toolchain in
   `rust-toolchain.toml`.
-- Decide whether the crate should stay a binary-only crate or split into
-  `src/lib.rs` plus a thin `src/main.rs` for testable core logic.
-- Choose CLI/config dependencies before implementation, likely `clap`,
-  `serde`, `serde_json`, `toml`, `camino` or `typed-path`, `blake3` or `sha2`,
-  and `thiserror`/`anyhow`.
-- Decide how to invoke and validate `just --dump --dump-format json` in tests.
-- Create fixture Justfiles for linewise recipes, dependency ordering, script
-  rejection, duplicate outputs, dangling inputs, and staleness records.
+- Continue expanding `cx graph` and `cx lint` toward the full overlay lints in
+  `cx-spec.md`, including dependency ordering, duplicate producers, dangling
+  inputs, and template collision checks.
+- Decide whether runtime command identity should match concrete argv, as in the
+  current MVP, or fully recover the template identity from the static graph.
 - Decide whether `.cx/config.toml` should be committed as project config or
   kept local, while keeping `.cx/graph.json` and `.cx/state.json` ignored.
