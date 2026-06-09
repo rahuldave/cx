@@ -1,6 +1,13 @@
 # Documentation Map
 
-Start with one document:
+Start with the user-facing `cx` docs:
+
+- `quickstart.md`: run the bundled example or reconstruct it in a new
+  directory without cloning this repository.
+- `architecture.md`: mental model, responsibility split between `cx` and
+  `just`, runtime/static behavior, and current MVP limitations.
+
+For project workflow material, start with one document:
 
 - `TUTORIAL.md`: deterministic, step-by-step GitHub tutorial for a new user.
 
