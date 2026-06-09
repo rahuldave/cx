@@ -62,3 +62,44 @@ build:
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn graph_handles_plain_and_cx_recipes_in_one_dependency_graph() {
+    let temp = TempDir::new().expect("tempdir");
+    write_justfile(
+        &temp,
+        r#"
+prepare:
+    mkdir -p out
+    printf ready > out/plain.txt
+
+build: prepare
+    cx --in out/plain.txt --out out/cx.txt -- cp out/plain.txt out/cx.txt
+
+report: build
+    cat out/cx.txt
+"#,
+    );
+
+    let graph_output = cx(&temp, &["graph"]);
+    assert!(
+        graph_output.status.success(),
+        "stderr was: {}",
+        String::from_utf8_lossy(&graph_output.stderr)
+    );
+
+    let graph: Value = serde_json::from_slice(&graph_output.stdout).expect("graph json");
+    let lines = graph["lines"].as_array().expect("lines array");
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0]["recipe"], "build");
+    assert_eq!(lines[0]["inputs"][0], "out/plain.txt");
+    assert_eq!(lines[0]["outputs"][0], "out/cx.txt");
+    assert!(graph["violations"].as_array().unwrap().is_empty());
+
+    let lint_output = cx(&temp, &["lint"]);
+    assert!(
+        lint_output.status.success(),
+        "stderr was: {}",
+        String::from_utf8_lossy(&lint_output.stderr)
+    );
+}
