@@ -1,7 +1,7 @@
 # cx
 
-`cx` adds file-aware incremental execution to individual lines in a
-[`just`](https://just.systems/) recipe.
+`cx` stands for **Conditional eXecution**: it adds file-aware incremental
+execution to individual lines in a [`just`](https://just.systems/) recipe.
 
 `just` still owns the recipe graph. It decides which recipes run and in what
 order. `cx` only decides whether one declared command line is already fresh.

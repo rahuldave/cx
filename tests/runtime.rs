@@ -21,6 +21,20 @@ fn read(path: &Path) -> String {
 }
 
 #[test]
+fn help_names_conditional_execution() {
+    let temp = TempDir::new().expect("tempdir");
+
+    let output = cx(&temp, &["--help"]);
+
+    assert!(output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("Conditional eXecution"),
+        "stdout was: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
 fn requires_at_least_one_output() {
     let temp = TempDir::new().expect("tempdir");
     write(&temp.path().join("input.txt"), "alpha");

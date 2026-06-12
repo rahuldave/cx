@@ -1,6 +1,6 @@
 # Documentation Map
 
-Start with the user-facing `cx` docs:
+Start with the user-facing `cx` (Conditional eXecution) docs:
 
 - `quickstart.md`: run the bundled example or reconstruct it in a new
   directory without cloning this repository.

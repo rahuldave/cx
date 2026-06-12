@@ -1,6 +1,7 @@
 # Architecture
 
-`cx` is a per-line incremental-execution overlay for `just`.
+`cx` means **Conditional eXecution**: a per-line incremental-execution overlay
+for `just`.
 
 The design goal is narrow: let `just` keep doing recipe orchestration, while
 `cx` gates expensive individual commands with explicit file declarations.

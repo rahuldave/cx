@@ -1,6 +1,7 @@
 # Quickstart
 
-This guide assumes `cx` is already installed somewhere on your `PATH`.
+This guide assumes `cx` (Conditional eXecution) is already installed somewhere
+on your `PATH`.
 
 Check:
 
