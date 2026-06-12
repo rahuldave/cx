@@ -527,7 +527,7 @@ pub fn run_env() -> ExitCode {
 
 fn print_help() {
     println!(
-        "cx 0.1.0\n\nUSAGE:\n    cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...\n    cx graph\n    cx lint"
+        "cx 0.1.0\nConditional eXecution for linewise just commands.\n\nUSAGE:\n    cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...\n    cx graph\n    cx lint"
     );
 }
 

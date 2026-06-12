@@ -1,7 +1,7 @@
 # Linewise `just` Example
 
-This example keeps `just` in charge of recipe ordering while `cx` gates the
-individual expensive lines.
+This example keeps `just` in charge of recipe ordering while `cx` provides
+Conditional eXecution for the individual expensive lines.
 
 It has one plain setup recipe and one recipe with two `cx` lines:
 

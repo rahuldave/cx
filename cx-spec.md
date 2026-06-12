@@ -1,9 +1,10 @@
-# cx — a per-line incremental-execution overlay for `just`
+# cx — Conditional eXecution for `just`
 
 ## 1. Overview
 
-`cx` adds input/output-aware incremental execution to `just` **without replacing
-`just` as the task runner and without pruning its dependency graph.**
+`cx` stands for **Conditional eXecution**. It adds input/output-aware
+incremental execution to `just` **without replacing `just` as the task runner
+and without pruning its dependency graph.**
 
 - `just` owns recipe ordering. When you run `just build`, the entire recipe
   dependency chain runs, exactly as it always does. No recipe is ever skipped.
