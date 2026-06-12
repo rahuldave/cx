@@ -102,9 +102,11 @@ workflow safety:
 - GitButler violations such as raw git writes in GitButler mode or shared
   GitButler workspace parallelism
 
-For non-trivial PRs, use adversarial review lenses. Delegate independent
-read-only lenses to review sub-agents when sub-agents are available, authorized,
-and useful; otherwise run the lenses explicitly yourself:
+For non-trivial PRs, use adversarial review lenses. Default to independent
+read-only review sub-agents when sub-agents are available, authorized, and the
+lenses can be checked independently; skip sub-agents only when they are
+unavailable, unsafe, or overkill for a tiny PR. Otherwise run the lenses
+explicitly yourself:
 
 - code behavior and regression risk
 - test adequacy, including whether new tests would fail on the old code
@@ -113,7 +115,8 @@ and useful; otherwise run the lenses explicitly yourself:
 - docs, setup, command-contract, release, and deployment drift
 - security, privacy, data, browser/UI, or language/runtime risk when relevant
 
-Gest mutations, approvals, merges, and post-merge bookkeeping should remain
+Writable sub-agents still require separate physical git worktrees. Gest
+mutations, approvals, merges, and post-merge bookkeeping should remain
 centralized unless deliberately assigned.
 
 For reusable workflow PRs, preserve adapter boundaries: plain Git branches,
@@ -121,6 +124,11 @@ GitButler-managed branches/stacks, physical git worktrees, and JJ
 bookmarks/workspaces must remain distinct. In this Git/GitButler skill family,
 do not weaken `but` write-command guidance or treat GitButler parallel lanes as
 agent isolation.
+
+For `cx` workflow PRs, verify that `cx` is framed as incremental build/pipeline
+infrastructure, not testing. Review `cx` lines for complete `--in`/`--out`
+declarations, durable file outputs, producer/consumer Just ordering, and
+`.cx` runtime-state ignore rules that do not hide future config.
 
 Treat `Findings: None` as a precise statement about blocking or actionable
 code-review findings, not as the whole PR review. If there are no findings, say
@@ -226,16 +234,64 @@ gh pr merge <pr> --rebase --delete-branch
 
 After merging:
 
-1. Verify local branch state:
+1. Verify the merged branch actually contained the intended changes. For
+GitButler work especially, inspect the branch/merge diff instead of trusting
+workspace assignments or an empty commit:
 
 ```bash
-git fetch --all --prune
-git checkout <base>
+gh pr diff <pr> --patch
+git show --stat <merge-or-head-sha>
+```
+
+Empty GitButler commits or `WIP Assignments` commits with no file changes are
+red flags: reconcile them before merge or create a follow-up PR from a clean
+checkout.
+
+2. Restore a consistent local state.
+
+For a plain-Git workstream, synchronize the local mainline and prune deleted
+remotes:
+
+```bash
+git fetch --prune origin
+git switch <base>
 git pull --ff-only
 git status --short --branch
 ```
 
-2. Add a Gest note to the parent and relevant leaf:
+For a GitButler workstream, do not run raw branch-mutating Git while GitButler
+owns the workspace. If no further GitButler stack work remains, exit GitButler
+mode first:
+
+```bash
+but teardown
+git status --short --branch
+```
+
+Then, after teardown has left the repository in normal Git mode, synchronize the
+base branch:
+
+```bash
+git fetch --prune origin
+git switch <base>
+git pull --ff-only
+git status --short --branch
+```
+
+Confirm `<base>` and `origin/<base>` point to the same commit. If the PR branch
+is still present locally and is merged or patch-equivalent to `<base>`, delete
+it with `git branch -d <branch>`. This applies to both `session/*` and `gest/*`
+work branches; those names are review/workflow handles, not durable records.
+Do not delete a branch that is checked out in another worktree.
+
+The final handoff should not leave the user on `gitbutler/workspace` unless
+active GitButler work is intentionally continuing. `gitbutler/target` and
+`gitbutler/workspace` are GitButler implementation refs, not normal work
+branches to keep after teardown. If teardown fails, verify the worktree is
+clean, `<base> == origin/<base>`, and the intended PR diff is merged before
+recovering to `<base>`; record the exact recovery in the Gest note.
+
+3. Add a Gest note to the parent and relevant leaf:
 
 ```text
 Done: PR <url> merged with <method>. Merge commit: <sha>.
@@ -243,7 +299,7 @@ Verification: <checks reviewed or run>.
 Follow-up: <real residual issue only>.
 ```
 
-3. Store metadata when useful:
+4. Store metadata when useful:
 
 ```bash
 gest task meta set <task-id> github.pr <number>
@@ -252,8 +308,8 @@ gest task meta set <task-id> github.merge_method <method>
 gest task meta set <task-id> github.merged_commit <sha>
 ```
 
-4. Regenerate checkpoint graphs for durable workflow changes.
+5. Regenerate checkpoint graphs for durable workflow changes.
 
 ## Tag And Dependency Review
 
-PR review should inspect tag/dependency context from `docs/tag_dependency_workflow.md`, especially selected semantic tags, `ast-grep` dependers, and follow-up tasks for coupled surfaces. Missing tag classification or missing dependency-impact coverage for changed code contracts is a review finding.
+PR review should inspect tag/dependency context from `references/tag_dependency_workflow.md`, especially selected semantic tags, `ast-grep` dependers, and follow-up tasks for coupled surfaces. Missing tag classification or missing dependency-impact coverage for changed code contracts is a review finding.

@@ -21,7 +21,7 @@ runtime tests or documentation checks; route those to `gte` and `gdo`.
 
 Use the target repository's project-specific command contract. Prefer `just`
 targets when `AGENTS.md` maps them. For the reusable Just command-contract
-model, see `docs/just_command_contract.md`. Common concepts include:
+model, see `references/just_command_contract.md`. Common concepts include:
 
 ```bash
 just fmt [path]
@@ -35,6 +35,11 @@ git diff --check
 If no command contract exists yet, inspect the project manifests and propose or
 route to `gsu` to establish one. Do not substitute smoke checks for `gte`.
 
+If the project uses `cx` in its Justfile, run `cx lint` or the mapped
+`just cx-lint` target as a static declaration check. `cx lint` validates
+incremental build/pipeline lines; it is not a test runner and should not be
+used as a substitute for `gte`.
+
 When a repository is GitButler-managed, use `but status` or `but diff` to
 identify branch-owned changes before running mechanical checks. Read-only git
 diff commands are acceptable, but do not use raw git write commands in
@@ -42,4 +47,4 @@ GitButler mode.
 
 ## Tag And Dependency Checks
 
-For code-facing changes, `gfm` may include lightweight `ast-grep` syntax or pattern checks from `docs/tag_dependency_workflow.md` when those checks are part of the mechanical contract.
+For code-facing changes, `gfm` may include lightweight `ast-grep` syntax or pattern checks from `references/tag_dependency_workflow.md` when those checks are part of the mechanical contract.

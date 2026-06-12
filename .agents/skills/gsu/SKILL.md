@@ -1,6 +1,6 @@
 ---
 name: gsu
-description: Gest Setup. Bootstrap or refresh a Gest-tracked repository's agent-operable workflow surface: tool checks, project command contract, Justfile targets, AGENTS.md mappings, docs/test conventions, and setup follow-ups.
+description: Gest Setup. Bootstrap or refresh a Gest-tracked repository workflow surface across tool checks, project command contracts, Justfile targets, AGENTS.md mappings, docs, tests, and setup follow-ups.
 ---
 
 # GSU: Gest Setup
@@ -35,6 +35,7 @@ Identify which of these concepts apply to the project:
 - smoke checks
 - browser spot checks
 - browser/UI verification
+- incremental build or artifact pipeline
 - database/migration checks
 - API docs
 - user docs
@@ -50,14 +51,20 @@ Identify which of these concepts apply to the project:
 2. Initialize Git or Gest only when missing and after confirming the desired
    repository root. Use `git init` and `gest init --local` for this Git-oriented
    skill family; keep jj support in a separate parallel skill repository.
-3. Check required workflow executables: `git`, `gest`, and `just`. Treat
-   `direnv` as recommended unless the project contract requires it.
+3. Check required workflow executables: `git`, `gest`, `just`, and `uv`.
+   Missing tools should be reported clearly without blocking skill
+   installation. Treat `direnv` as recommended unless the project contract
+   requires it. Check `cx` only when the project has or wants explicit
+   file-producing incremental build/pipeline stages.
 4. Infer likely project profiles from files and user context. Examples:
    - Python: `pyproject.toml`, `uv.lock`, `pixi.toml`, notebooks, FastAPI,
      Django, Flask, pytest, ruff, ty, pyright, mypy.
    - TypeScript/JavaScript: `package.json`, lockfiles, Vite, Next, ESLint,
      Biome, TypeScript, Vitest, Jest, Playwright.
    - Rust: `Cargo.toml`, Cargo workspaces, clippy, rustfmt, rustdoc.
+   - C/C++ or native build: `Makefile`, `CMakeLists.txt`,
+     `compile_commands.json`, `src/*.c`, `src/*.cc`, `include/`, object files,
+     custom compile/link recipes.
 5. Ask the user to choose when multiple plausible tools exist, when profile
    tradeoffs affect committed files, or when installation
    would change the machine or repository. Prefer one concise question at a
@@ -79,19 +86,81 @@ Identify which of these concepts apply to the project:
    static checks, and targeted commands that prove argument passing works.
 13. Record remaining setup gaps as Gest follow-ups rather than hiding them.
 
+## Package Install Handoff
+
+For a normal target repository, `gsu` runs after the package-specific installer
+has already handled package extras. Do not use `skill-package-maker` for this
+handoff. That skill is for authoring skill packages, not for setting up a repo
+that just installed the Git/GitButler Gest skills.
+
+Before ordinary setup work, verify that the expected package handoff is present:
+
+- `.agents/skills/gest_git_installer/SKILL.md`
+- at least one core workflow skill such as `.agents/skills/gtw/SKILL.md`
+- skill-local support material under `.agents/skills/*/references/`,
+  `.agents/skills/*/scripts/`, and `.agents/skills/*/assets/` as needed
+- `.agents/skills/gsu/assets/templates/`
+- `.agents/skills/gsu/scripts/gest_mermaid_graph.py`
+- `.claude/settings.json` and `.claude/hooks/`
+- `.codex/hooks.json` and `.codex/hooks/`
+- `AGENTS.md`, or a clear note that an existing `AGENTS.md` was preserved and
+  still needs the template guidance merged
+
+If hooks/settings or AGENTS guidance are missing, tell the user to invoke
+`gest_git_installer` first. Once the handoff is present, proceed with normal
+`gsu` work: tool checks, ignore rules, dependency setup, command contracts,
+Justfile targets, verification commands, and follow-up tasks.
+
+## Skill Repository Packaging
+
+Only when the target repository is itself a skill repository, look for
+`skill-package.json`, `skills/*/SKILL.md`, `.agents/skills/*/SKILL.md`, and
+the repo-level installer script. If the `skill-package-maker` skill is installed or
+available in the current source checkout, use it for packaging checks before
+declaring setup complete.
+
+Preferred checks:
+
+```bash
+uv run python ~/.agents/skills/skill-package-maker/scripts/lint_skill_bundle.py .
+uv run python ~/.agents/skills/skill-package-maker/scripts/render_package_plan.py .
+```
+
+If the skill was installed project-locally instead of globally, use the same
+script paths under `.agents/skills/skill-package-maker/`. If the standalone
+checkout is available, use:
+
+```bash
+uv run python /Users/rahul/Projects/agent_skill_package_maker/skills/skill-package-maker/scripts/lint_skill_bundle.py .
+```
+
+Require skill repos to declare their package-specific installer skill, custom
+installers, and executable prerequisites in `skill-package.json`. For packages
+installed with `npx skills`, hooks/settings and target-repo extras should be
+installed by the package's explicit installer skill after `npx skills add`, not
+as a hidden install side effect. Skill runtime references, templates, helper
+scripts, and assets should live inside the skill folder that needs them.
+Installer scripts must report every required workflow
+executable without blocking the skill copy and mention optional executables
+that unlock extra flows.
+
+Required workflow executables are `git`, `gest`, `just`, and `uv`; optional
+executables include `rsync`, `gh`, `but`, `ast-grep`, `direnv`, and `cx`.
+Runtime commands should re-check tools they actually need.
+
 ## Snippet Templates
 
-This repository includes composable snippets under `templates/`. Use them as
+This skill includes composable snippets under `assets/templates/`. Use them as
 starting points, not as blind overwrites:
 
-- `templates/gitignore/base.gitignore`
-- `templates/gitignore/python-uv.gitignore`
-- `templates/gitignore/typescript-npm.gitignore`
-- `templates/gitignore/browser-agent.gitignore`
-- `templates/env/envrc.local-bin`
-- `templates/env/*profile*.envrc` and related profile env snippets
-- `templates/env/env.example`
-- `templates/just/*.just`
+- `assets/templates/gitignore/base.gitignore`
+- `assets/templates/gitignore/python-uv.gitignore`
+- `assets/templates/gitignore/typescript-npm.gitignore`
+- `assets/templates/gitignore/browser-agent.gitignore`
+- `assets/templates/env/envrc.local-bin`
+- `assets/templates/env/*profile*.envrc` and related profile env snippets
+- `assets/templates/env/env.example`
+- `assets/templates/just/*.just`
 
 Every setup should include the base ignore concepts. Add profile snippets only
 when the project needs them. If existing project files already cover the same
@@ -112,8 +181,8 @@ candidate profile instead of stopping. Work in this order:
    `AGENTS.md` command-contract snippets.
 4. Apply them to a disposable project or current repo after confirmation.
 5. Run setup verification and revise the snippets.
-6. If the profile is generally useful, add it to `templates/` and document the
-   questions/tradeoffs.
+6. If the profile is generally useful, add it to `assets/templates/` and
+   document the questions/tradeoffs.
 
 Do not silently invent project policy for expensive or irreversible choices.
 Ask before ignoring data directories, generated code, model artifacts, lockfiles,
@@ -123,7 +192,7 @@ or credentials.
 
 Prefer `just` targets when present. `AGENTS.md` should say which command maps
 to each workflow concept and how arguments are passed. See
-`docs/just_command_contract.md` for the reusable Just command-contract model. A
+`references/just_command_contract.md` for the reusable Just command-contract model. A
 typical contract might include:
 
 ```text
@@ -170,13 +239,15 @@ Common checks:
 git --version
 gest --version
 just --version
-direnv version
 uv --version
+rsync --version
+direnv version
 node --version
 npm --version
 go version
 cargo --version
 rustc --version
+cx --help
 ```
 
 Profile install prompts should be concrete:
@@ -232,6 +303,43 @@ setup action that may require approval in sandboxed environments.
 Do not silently rely on ambient global tools when the project contract says a
 local toolchain is required. If installation needs network or writes outside
 the sandbox, request approval and explain the tool being installed.
+
+## cx Incremental Build And Pipeline Setup
+
+`cx` is for incremental builds and file-artifact pipelines in linewise Just
+recipes. It is not a test runner. Use it only when a command reads explicit
+files and writes durable output files.
+
+Good setup candidates:
+
+- ML/AI or data pipelines with intermediate artifacts, such as raw data to
+  features to model to report.
+- Generated artifact workflows where schemas, prompts, scripts, or configs
+  produce generated files.
+- Document, book, image, audio, or data conversion pipelines.
+- Hand-written C/C++ compile/link recipes with object files and binaries as
+  explicit outputs.
+
+Do not add `cx` for tests, lint, format, typecheck, browser checks, ordinary
+`cargo build`, `go build`, `tsc`, or commands without durable file outputs.
+Those stay ordinary project command-contract targets.
+
+When adding `cx`:
+
+- keep Just recipe dependencies for recipe ordering;
+- wrap only individual file-producing command lines with
+  `cx --in ... --out ... -- COMMAND ...`;
+- include scripts, schemas, prompts, config, and parameter files in `--in`
+  when they affect outputs;
+- add `cx lint` or `just cx-lint` to the static/check contract when useful;
+- ignore `.cx/state.json`, `.cx/graph.json`, and `.cx/tmp/`, but leave
+  `.cx/config.toml` committable unless the project decides otherwise;
+- verify the pipeline/build by running once, running again to observe
+  `up-to-date`, then changing one input and confirming the expected downstream
+  artifacts rerun.
+
+For reusable examples, read `references/cx_incremental_pipelines.md` and run
+`just cx-examples-lab` in this skill repository.
 
 For npm projects, prefer a project-local cache when the user wants explicit
 per-project tooling or the global npm cache is unreliable:
