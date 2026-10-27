@@ -21,8 +21,14 @@ request, it must say why in the final response.
 - Primary preliminary spec: `cx-spec.md`
 - Detailed workflow playbook:
   `.agents/skills/gtw/references/gest_codex_workflow.md`
-- Command-contract reference:
-  `.agents/skills/gtw/references/just_command_contract.md`
+- Command-contract reference: the `just` skill of jnterfaces,
+  `.agents/skills/just/SKILL.md`, and its contract
+  `.agents/skills/just/references/command_contract.md`
+- Usage skill for cx: the `cx` skill of jnterfaces, `.agents/skills/cx/SKILL.md`.
+  It says when to use cx and how to run `cx lint`. Its source is
+  https://github.com/rahuldave/jnterfaces. Change the skill there when the
+  behavior of cx changes, and install it here again with `scripts/install.sh`
+  of jnterfaces.
 - Tag/dependency workflow:
   `.agents/skills/gtw/references/tag_dependency_workflow.md`
 
