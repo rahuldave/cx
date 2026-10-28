@@ -123,3 +123,7 @@ Known follow-ups:
 - make runtime command identity recover the template identity from `cx graph`
   rather than using the current concrete argv identity;
 - add configuration for lint strictness and future `.cx/config.toml` behavior.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
