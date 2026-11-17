@@ -190,6 +190,9 @@ just test
 just smoke
 just diff-check
 just verify
+just release-check
+just check
+just release
 git diff --check
 ```
 
@@ -208,6 +211,24 @@ Current command mappings:
 - Diff hygiene: `just diff-check`, which runs `git diff --check`.
 - Full local verification: `just verify`, which depends on `fmt-check`,
   `lint`, `test`, `smoke`, and `diff-check`.
+- Release check: `just release-check` fails when the version of `Cargo.toml`
+  is lower than the last tag `vX.Y.Z`, or lower than the bump that the commits
+  ask for. It needs no network.
+- Every check: `just check`, which runs `release-check`, then `verify`. Every
+  commit must pass it.
+- Release: `just release` tags HEAD with `v` and the version of `Cargo.toml`,
+  pushes the tag and checks it. `just release --dry-run` prints the tag and
+  changes nothing. On each push to `main`, the job `release` of
+  `.github/workflows/verify.yml` runs it after the job `verify` passes. Only
+  that job can write to the repository. So a PR that needs a release raises
+  the version of `Cargo.toml`. The script is `scripts/release_tag.py`, a copy
+  of the script of the gpa skill of agent_gest_git_skills. The section
+  "Release tags" of its `docs/integration_delivery_workflow.md` gives the
+  rules. The script reads the profile `rust` from `.agents/stack.json`, and
+  runs `just rust::version` of `scripts/rust.just`. The file
+  `.agents/stack.json` is written by hand until cx installs jnterfaces. When
+  cx installs the rust profile, take out the line `mod rust` of the
+  `Justfile` and `scripts/rust.just`.
 
 When changing Just recipes, consult the Just manual rather than treating it like
 Make. The key reference for recipe ordering is:
