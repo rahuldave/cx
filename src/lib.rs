@@ -22,6 +22,10 @@ where
             print_help();
             ExitCode::SUCCESS
         }
+        Some("--version") | Some("-V") => {
+            println!("cx {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
         Some("graph") => run_static(StaticMode::Graph, cwd),
         Some("lint") => run_static(StaticMode::Lint, cwd),
         Some(_) => match RuntimeInvocation::parse(args) {
@@ -527,7 +531,8 @@ pub fn run_env() -> ExitCode {
 
 fn print_help() {
     println!(
-        "cx 0.1.0\nConditional eXecution for linewise just commands.\n\nUSAGE:\n    cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...\n    cx graph\n    cx lint"
+        "cx {}\nConditional eXecution for linewise just commands.\n\nUSAGE:\n    cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...\n    cx graph\n    cx lint\n    cx --version",
+        env!("CARGO_PKG_VERSION")
     );
 }
 
