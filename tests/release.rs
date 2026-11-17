@@ -83,6 +83,23 @@ fn commit(repo: &Path, message: &str) {
     );
 }
 
+/// The commit of agent_gest_git_skills that scripts/release_tag.py copies. The Justfile names it too.
+const UPSTREAM_COMMIT: &str = "799a44b";
+/// The Git blob of .agents/skills/gpa/scripts/release_tag.py at UPSTREAM_COMMIT of agent_gest_git_skills. To update the
+/// copy, copy that file of the new commit, set UPSTREAM_COMMIT and the comment of the Justfile, and set this blob to
+/// the output of `git -C AGENT_GEST_GIT_SKILLS rev-parse COMMIT:.agents/skills/gpa/scripts/release_tag.py`.
+const UPSTREAM_BLOB: &str = "f014570e60c3ef9a7d2828cdd3e87f7d5e1f7047";
+
+#[test]
+fn the_script_is_the_copy_of_upstream() {
+    let blob = ok(&root(), "git", &["hash-object", "scripts/release_tag.py"]);
+    assert_eq!(
+        blob.trim(),
+        UPSTREAM_BLOB,
+        "scripts/release_tag.py differs from agent_gest_git_skills {UPSTREAM_COMMIT}"
+    );
+}
+
 #[test]
 fn check_runs_release_check() {
     let dump: Value =
