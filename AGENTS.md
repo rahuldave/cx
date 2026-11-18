@@ -27,8 +27,15 @@ request, it must say why in the final response.
 - Usage skill for cx: the `cx` skill of jnterfaces, `.agents/skills/cx/SKILL.md`.
   It says when to use cx and how to run `cx lint`. Its source is
   https://github.com/rahuldave/jnterfaces. Change the skill there when the
-  behavior of cx changes, and install it here again with `scripts/install.sh`
-  of jnterfaces.
+  behavior of cx changes. Then install the skills of jnterfaces here again
+  from a clone of jnterfaces at `JN`:
+  `uv run JN/scripts/install_package.py . --source JN --skill cx --skill jagt-protocol --skill just`.
+  The record of the install is `.agents/jnterfaces-install.json`.
+  The install also writes `.agents/install.just` and `.agents/tools_check.py`.
+  cx does not use them: its Justfile does not import `.agents/install.just`,
+  so cx has no `just install`. Do not add the import. The rust profile that
+  `just install` would bring defines the module `rust` again, and `just`
+  stops on a module defined twice.
 - Tag/dependency workflow:
   `.agents/skills/gtw/references/tag_dependency_workflow.md`
 
