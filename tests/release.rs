@@ -246,7 +246,12 @@ fn only_the_jobs_release_and_publish_can_write() {
         .iter()
         .filter_map(|step| step["run"].as_str())
         .collect();
-    for check in ["release/cx --version", "lipo -archs", "statically linked"] {
+    // The x86_64 musl build is a static PIE, which file names "static-pie linked", so the check takes both forms.
+    for check in [
+        "release/cx --version",
+        "lipo -archs",
+        "grep -Eq 'statically linked|static-pie linked'",
+    ] {
         assert!(runs.iter().any(|run| run.contains(check)), "{check}");
     }
     let upload = publish["steps"]
