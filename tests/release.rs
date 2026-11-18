@@ -229,8 +229,8 @@ fn only_the_jobs_release_and_publish_can_write() {
     assert_eq!(
         targets,
         [
-            ("macos-14", "aarch64-apple-darwin"),
-            ("macos-14", "x86_64-apple-darwin"),
+            ("macos-15", "aarch64-apple-darwin"),
+            ("macos-15", "x86_64-apple-darwin"),
             ("ubuntu-24.04", "x86_64-unknown-linux-musl"),
             ("ubuntu-24.04-arm", "aarch64-unknown-linux-musl"),
         ]

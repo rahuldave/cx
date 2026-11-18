@@ -38,13 +38,13 @@ curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.s
 The script downloads the archive of cx for your platform from the GitHub release, and checks its SHA-256 hash. Then it puts `cx` in `~/.local/bin` and prints the version. Releases have archives for macOS on Apple silicon and Intel, and for Linux on x86_64 and arm64. To pick a release or a folder, give `--tag` or `--dir`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.sh | sh -s -- --tag v0.2.1 --dir ~/bin
+curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.sh | sh -s -- --tag v0.2.2 --dir ~/bin
 ```
 
 To build from source, use Cargo, the package manager of Rust. Cargo puts the program in `~/.cargo/bin`:
 
 ```bash
-cargo install --locked --git https://github.com/rahuldave/cx --tag v0.2.1
+cargo install --locked --git https://github.com/rahuldave/cx --tag v0.2.2
 ```
 
 Check that the folder of `cx` is on your `PATH`:
