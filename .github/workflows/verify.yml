@@ -104,9 +104,12 @@ jobs:
       - name: Check the Intel binary
         if: steps.tag.outputs.tag != '' && matrix.target == 'x86_64-apple-darwin'
         run: lipo -archs target/x86_64-apple-darwin/release/cx | grep -qx x86_64
+      # file says "static-pie linked" for the x86_64 musl binary and "statically linked" for the arm64 one.
       - name: Check that the Linux binary is static
         if: steps.tag.outputs.tag != '' && runner.os == 'Linux'
-        run: file target/${{ matrix.target }}/release/cx | grep -q 'statically linked'
+        run: |
+          file target/${{ matrix.target }}/release/cx
+          file target/${{ matrix.target }}/release/cx | grep -Eq 'statically linked|static-pie linked'
       - if: steps.tag.outputs.tag != ''
         uses: actions/upload-artifact@v4
         with:
