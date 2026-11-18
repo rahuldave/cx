@@ -31,6 +31,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check
         run: just verify
+      - name: Check the docs site
+        run: just docs-check
 
   # On a push to main, after the job verify passed, tag the next release with just release. No agent runs here.
   release:

@@ -1,7 +1,10 @@
 # cx
 
-`cx` stands for **Conditional eXecution**: it adds file-aware incremental
+`cx` stands for **Conditional eXecution**. It adds file-aware incremental
 execution to individual lines in a [`just`](https://just.systems/) recipe.
+
+The documentation site is https://rahuldave.com/cx/. It is built from `docs/`,
+and `just docs` previews it.
 
 `just` still owns the recipe graph. It decides which recipes run and in what
 order. `cx` only decides whether one declared command line is already fresh.
@@ -30,7 +33,7 @@ Think of `cx` as a checkpoint around one expensive shell command.
 - The command after `--` runs only when those declarations are stale.
 - Cache state lives beside the project in `.cx/state.json`.
 
-This is command-level incrementality, not Make-style target pruning. A recipe
+The model is command-level incrementality, not Make-style target pruning. A recipe
 that depends on another recipe still runs through the normal `just` order; only
 individual `cx` lines can become no-ops.
 

@@ -1,10 +1,10 @@
 # Architecture
 
-`cx` means **Conditional eXecution**: a per-line incremental-execution overlay
-for `just`.
+`cx` means **Conditional eXecution**. It is a per-line incremental-execution
+overlay for `just`.
 
-The design goal is narrow: let `just` keep doing recipe orchestration, while
-`cx` gates expensive individual commands with explicit file declarations.
+The design goal is narrow. `just` keeps the order of the recipes, and `cx`
+gates expensive individual commands with explicit file declarations.
 
 ## Responsibility Split
 
@@ -69,7 +69,7 @@ propagates failure and does not update the record.
 just --dump --dump-format json
 ```
 
-That means `cx` relies on `just` to parse Justfile syntax. The MVP static pass
+So `cx` relies on `just` to parse Justfile syntax. The MVP static pass
 then reconstructs linewise recipe body text, finds lines whose first shell token
 is `cx`, and extracts `--in`, `--out`, and command tokens.
 
@@ -105,7 +105,7 @@ The plain `prepare` and `report` recipes are not skipped by `cx`.
 ## Current Limitations
 
 The MVP intentionally does not implement the full overlay graph described in
-[`cx-spec.md`](../cx-spec.md).
+[`cx-spec.md`](https://github.com/rahuldave/cx/blob/main/cx-spec.md).
 
 Important follow-ups:
 

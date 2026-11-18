@@ -1,0 +1,39 @@
+project:
+  type: website
+  output-dir: _site
+  # cx-rust-prep.md is a note for the work on cx, and not a page of the site.
+  render:
+    - "*.md"
+    - "!cx-rust-prep.md"
+
+website:
+  title: cx
+  favicon: favicon.svg
+  description: "cx runs one line of a Just recipe only when its input files, its output files or its command change"
+  site-url: https://rahuldave.com/cx/
+  repo-url: https://github.com/rahuldave/cx
+  repo-subdir: docs
+  repo-actions: [source, issue]
+  page-navigation: true
+  navbar:
+    left:
+      - href: index.md
+        text: Home
+      - href: commands.md
+        text: Commands
+      - href: quickstart.md
+        text: Quickstart
+      - href: jnterfaces.md
+        text: With jnterfaces
+      - href: architecture.md
+        text: Architecture
+    tools:
+      - icon: github
+        href: https://github.com/rahuldave/cx
+  page-footer:
+    left: "Part of [jnterfaces](https://rahuldave.github.io/jnterfaces/) and its packages."
+    right: "Built with [smalldocs](https://docs.smallish.dev/)."
+
+theme: atelier
+toc: true
+code-copy: true
