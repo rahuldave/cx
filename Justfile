@@ -33,8 +33,8 @@ diff-check:
 
 verify: fmt-check lint test smoke diff-check
 
-# Every check of the repository: the release version, then verify. CI runs release-check and verify
-check: release-check verify
+# Every check of the repository: the release version, verify, then the docs site. CI runs each of them
+check: release-check verify docs-check
 
 # The release tags. scripts/release_tag.py is a copy of .agents/skills/gpa/scripts/release_tag.py of
 # agent_gest_git_skills at the commit 799a44b. The job release of verify.yml runs just release on each push to main.
@@ -54,3 +54,20 @@ release *args:
 # Fail when the version of Cargo.toml is below the last tag or the bump that the commits ask for. It needs no network
 release-check:
     {{release_tag}} --check
+
+# The docs site in docs/, which smalldocs builds. The workflow docs-site.yml publishes it to https://rahuldave.com/cx/
+# The docs role of jnterfaces defines the same recipe names. If cx installs that role, take out these recipes first,
+# because just stops on a recipe defined twice
+smalldocs := "uvx --quiet smalldocs@0.5.12"
+
+# Check the pages of the site: ignored keys, Pandoc-only syntax and broken links
+docs-check:
+    {{smalldocs}} check docs
+
+# Build the site, serve it on localhost, and rebuild it on each change
+docs:
+    {{smalldocs}} preview docs
+
+# Build the site in strict mode into docs/_site
+docs-build:
+    {{smalldocs}} render docs --strict
