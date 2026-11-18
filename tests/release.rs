@@ -1,5 +1,5 @@
-//! The release tags: just check runs release-check, the tag is v plus the version of Cargo.toml, and only the job
-//! release of CI can write to the repository. The tests need git, just and uv on the PATH.
+//! The release tags: just check runs release-check, the tag is v plus the version of Cargo.toml, and only the jobs
+//! release and publish of CI can write to the repository. The tests need git, just and uv on the PATH.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -151,7 +151,7 @@ fn release_tags_the_version_of_cargo_toml() {
 }
 
 #[test]
-fn only_the_job_release_can_write() {
+fn only_the_jobs_release_and_publish_can_write() {
     let read = "import json, sys, yaml; print(json.dumps(yaml.safe_load(open(sys.argv[1]))))";
     let workflow = root().join(".github/workflows/verify.yml");
     let text = ok(
@@ -173,7 +173,11 @@ fn only_the_job_release_can_write() {
     assert_eq!(flow["permissions"], serde_json::json!({"contents": "read"}));
     for (name, job) in flow["jobs"].as_object().expect("jobs") {
         let write = job["permissions"]["contents"] == "write";
-        assert_eq!(write, name == "release", "the job {name}");
+        assert_eq!(
+            write,
+            name == "release" || name == "publish",
+            "the job {name}"
+        );
     }
     let release = &flow["jobs"]["release"];
     assert_eq!(release["needs"], "verify");
@@ -184,6 +188,76 @@ fn only_the_job_release_can_write() {
     let steps = release["steps"].as_array().expect("steps");
     assert_eq!(steps[0]["with"]["fetch-depth"], 0);
     assert_eq!(steps.last().expect("step")["run"], "just release");
+    // The jobs binaries and publish run after the job release, on a push to main, and find the tag of HEAD.
+    let binaries = &flow["jobs"]["binaries"];
+    let publish = &flow["jobs"]["publish"];
+    assert_eq!(binaries["needs"], "release");
+    assert_eq!(publish["needs"], "binaries");
+    for job in [binaries, publish] {
+        assert_eq!(job["if"], release["if"]);
+        let steps = job["steps"].as_array().expect("steps");
+        assert_eq!(steps[0]["with"]["fetch-depth"], 0);
+        assert_eq!(steps[0]["with"]["fetch-tags"], true);
+        assert!(
+            steps[1]["run"]
+                .as_str()
+                .expect("run")
+                .contains("git tag --points-at HEAD")
+        );
+        // With no tag, each step after the checkout and the tag step is skipped.
+        for step in &steps[2..] {
+            assert_eq!(
+                step["if"]
+                    .as_str()
+                    .map(|s| s.starts_with("steps.tag.outputs.tag != ''")),
+                Some(true),
+                "{step}"
+            );
+        }
+    }
+    let targets: Vec<(&str, &str)> = binaries["strategy"]["matrix"]["include"]
+        .as_array()
+        .expect("include")
+        .iter()
+        .map(|leg| {
+            (
+                leg["runner"].as_str().expect("runner"),
+                leg["target"].as_str().expect("target"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        targets,
+        [
+            ("macos-14", "aarch64-apple-darwin"),
+            ("macos-14", "x86_64-apple-darwin"),
+            ("ubuntu-24.04", "x86_64-unknown-linux-musl"),
+            ("ubuntu-24.04-arm", "aarch64-unknown-linux-musl"),
+        ]
+    );
+    let steps = binaries["steps"].as_array().expect("steps");
+    assert!(
+        steps
+            .iter()
+            .any(|step| step["run"] == "just dist ${{ matrix.target }}")
+    );
+    // Each binary is checked before it is published: run, or its architecture, or that it is static.
+    let runs: Vec<&str> = steps
+        .iter()
+        .filter_map(|step| step["run"].as_str())
+        .collect();
+    for check in ["release/cx --version", "lipo -archs", "statically linked"] {
+        assert!(runs.iter().any(|run| run.contains(check)), "{check}");
+    }
+    let upload = publish["steps"]
+        .as_array()
+        .expect("steps")
+        .last()
+        .expect("step")["run"]
+        .as_str()
+        .expect("run")
+        .to_owned();
+    assert!(upload.contains("gh release create \"$TAG\" dist/* --verify-tag --notes-from-tag"));
     let verify = flow["jobs"]["verify"]["steps"].as_array().expect("steps");
     assert_eq!(verify[0]["with"]["fetch-depth"], 0);
     assert!(

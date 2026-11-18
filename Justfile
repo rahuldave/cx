@@ -55,6 +55,15 @@ release *args:
 release-check:
     {{release_tag}} --check
 
+# Build the release binary for TARGET, a Rust target triple, and pack it as dist/cx-TARGET.tar.gz with cx at its top
+# level, plus dist/cx-TARGET.tar.gz.sha256. The job binaries of verify.yml runs it, and scripts/install.sh installs it
+dist target:
+    rustup target add {{target}}
+    cargo build --release --locked --target {{target}}
+    mkdir -p dist
+    COPYFILE_DISABLE=1 tar -czf dist/cx-{{target}}.tar.gz -C target/{{target}}/release cx
+    cd dist && shasum -a 256 cx-{{target}}.tar.gz > cx-{{target}}.tar.gz.sha256
+
 # The docs site in docs/, which smalldocs builds. The workflow docs-site.yml publishes it to https://rahuldave.com/cx/
 # The docs role of jnterfaces defines the same recipe names. If cx installs that role, take out these recipes first,
 # because just stops on a recipe defined twice

@@ -39,22 +39,30 @@ individual `cx` lines can become no-ops.
 
 ## Install
 
-From this repository:
+Install the latest release with the script `scripts/install.sh`. The script needs no Rust:
 
 ```bash
-cargo install --path . --force
+curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.sh | sh
 ```
 
-That installs a release build, usually at:
-
-```text
-~/.cargo/bin/cx
-```
-
-Verify:
+The script downloads the archive of cx for your platform from the GitHub release, and checks its SHA-256 hash. Then
+it puts `cx` in `~/.local/bin` and prints the version. Releases have archives for macOS on Apple silicon and Intel,
+and for Linux on x86_64 and arm64. To pick a release or a folder, give `--tag` or `--dir`:
 
 ```bash
-cx --help
+curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.sh | sh -s -- --tag v0.2.0 --dir ~/bin
+```
+
+To build from source, use Cargo, the package manager of Rust:
+
+```bash
+cargo install --locked --git https://github.com/rahuldave/cx --tag v0.2.0
+```
+
+Check that the folder of `cx` is on your `PATH`:
+
+```bash
+cx --version
 ```
 
 ## Quick Start

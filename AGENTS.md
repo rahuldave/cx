@@ -193,6 +193,7 @@ just verify
 just release-check
 just check
 just release
+just dist <target>
 git diff --check
 ```
 
@@ -220,7 +221,7 @@ Current command mappings:
   pushes the tag and checks it. `just release --dry-run` prints the tag and
   changes nothing. On each push to `main`, the job `release` of
   `.github/workflows/verify.yml` runs it after the job `verify` passes. Only
-  that job can write to the repository. So a PR that needs a release raises
+  that job and the job `publish` can write to the repository. So a PR that needs a release raises
   the version of `Cargo.toml`. The script is `scripts/release_tag.py`, a copy
   of the script of the gpa skill of agent_gest_git_skills. The section
   "Release tags" of its `docs/integration_delivery_workflow.md` gives the
@@ -229,6 +230,12 @@ Current command mappings:
   `.agents/stack.json` is written by hand until cx installs jnterfaces. When
   cx installs the rust profile, take out the line `mod rust` of the
   `Justfile` and `scripts/rust.just`.
+- Binaries: `just dist <target>` builds cx for a Rust target, for example
+  `aarch64-apple-darwin`, and writes `dist/cx-<target>.tar.gz` and its
+  `.sha256`. When the job `release` made a tag, the job `binaries` runs it for
+  four targets, and the job `publish` puts the files on the GitHub release of
+  the tag. `scripts/install.sh` installs a release, and `tests/install.rs`
+  tests it against a fake release.
 
 When changing Just recipes, consult the Just manual rather than treating it like
 Make. The key reference for recipe ordering is:
