@@ -23,11 +23,24 @@ jobs:
           fetch-depth: 0
       - uses: extractions/setup-just@v3
       - uses: astral-sh/setup-uv@v6
+      - name: Install jlog
+        # The index of jnterfaces sets jlog as the shell of each recipe, so each job that runs just needs jlog. The tag
+        # v0.3.0 of jlog is the commit d4b712b, as in the CI of jnterfaces. install.sh comes from the tag. It downloads
+        # the release binary, checks its SHA-256 and puts it in ~/.local/bin. setup-uv comes first, so install.sh makes
+        # the environments of the plugins. The step shell bash has pipefail, so a failed download fails.
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rahuldave/jlog/v0.3.0/scripts/install.sh | sh -s -- --tag v0.3.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Check the release version against the tags and the commits
         run: just release-check
+      # The steps test and integration of the rust profile run the tests under cargo llvm-cov.
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
       - uses: Swatinem/rust-cache@v2
       - name: Check
         run: just verify
@@ -52,6 +65,15 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
       - uses: extractions/setup-just@v3
+      - name: Install jlog
+        # The index of jnterfaces sets jlog as the shell of each recipe, so each job that runs just needs jlog. The tag
+        # v0.3.0 of jlog is the commit d4b712b, as in the CI of jnterfaces. install.sh comes from the tag. It downloads
+        # the release binary, checks its SHA-256 and puts it in ~/.local/bin. setup-uv comes first, so install.sh makes
+        # the environments of the plugins. The step shell bash has pipefail, so a failed download fails.
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rahuldave/jlog/v0.3.0/scripts/install.sh | sh -s -- --tag v0.3.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Name the author of the tag
         run: |
           git config user.name "github-actions[bot]"
@@ -92,6 +114,18 @@ jobs:
         run: echo "tag=$(git tag --points-at HEAD --sort=-v:refname --list 'v*' | head -n 1)" >> "$GITHUB_OUTPUT"
       - if: steps.tag.outputs.tag != ''
         uses: extractions/setup-just@v3
+      - if: steps.tag.outputs.tag != ''
+        uses: astral-sh/setup-uv@v6
+      - name: Install jlog
+        if: steps.tag.outputs.tag != ''
+        # The index of jnterfaces sets jlog as the shell of each recipe, so each job that runs just needs jlog. The tag
+        # v0.3.0 of jlog is the commit d4b712b, as in the CI of jnterfaces. install.sh comes from the tag. It downloads
+        # the release binary, checks its SHA-256 and puts it in ~/.local/bin. setup-uv comes first, so install.sh makes
+        # the environments of the plugins. The step shell bash has pipefail, so a failed download fails.
+        shell: bash
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rahuldave/jlog/v0.3.0/scripts/install.sh | sh -s -- --tag v0.3.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - if: steps.tag.outputs.tag != ''
         uses: dtolnay/rust-toolchain@stable
       - name: Build and pack the binary
