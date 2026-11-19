@@ -67,7 +67,7 @@ blocks at the top of `Justfile`, `.gitignore` and this file.
   `integration` and `docstring`.
 - The roles `tasker`, `prose`, `cx` and `jagt-protocol`.
 
-One part of the stack is left out: the `docs` role. cx has its own docs
+One part of the stack is left out. It is the `docs` role. cx has its own docs
 site and the recipes `docs`, `docs-check` and `docs-build`. The role defines
 the same recipes, and `just install` stops on a recipe that is defined twice.
 
@@ -145,10 +145,13 @@ run the commit gate.
   after the job `verify` passes, the job `release` runs `just release`. Only
   that job and the job `publish` can write to the repository. So a PR that
   needs a release raises the version of `Cargo.toml`.
-- When the job `release` made a tag, the job `binaries` runs `just dist` for
-  four targets, and the job `publish` puts the files on the GitHub release of
-  the tag. `scripts/install.sh` installs a release, and `tests/install.rs`
-  tests it against a fake release.
+- On each push to `main`, the job `binaries` runs after the job `release`
+  passes, and the job `publish` runs after the job `binaries` passes. Each
+  job first finds the tag `v*` of HEAD. When HEAD has no tag, the other steps
+  of the job skip, and the job passes. When HEAD has a tag, the job
+  `binaries` runs `just dist` for four targets, and the job `publish` puts
+  the files on the GitHub release of the tag. `scripts/install.sh` installs
+  a release, and `tests/install.rs` tests it against a fake release.
 - Each job that runs `just` installs `jlog` first. The tasker role also wrote
   a starter `release.yml`. cx removed it, because `verify.yml` already has the
   job that tags, and two such jobs would tag twice.
