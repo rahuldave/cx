@@ -15,7 +15,8 @@
     "rust:integration",
     "rust:lint",
     "rust:typecheck",
-    "rust:test"
+    "rust:test",
+    "rust:docstring"
   ],
   "variants": {
     "tasker": "git"
@@ -59,12 +60,13 @@
     "test",
     "integration",
     "coverage-check",
+    "docstring-check",
     "prose-check",
     "diff-check"
   ],
   "generated": {
-    ".agents/just/index.just": "c922b852acbeb95acebabdecf24e5e59b77405e78d1082bd0fba5ffdceb6ee1d",
-    ".agents/just/rust.just": "0b441786d1c1308386de923aa286b819cb977bc35f210e8f27d200c02e4355da"
+    ".agents/just/index.just": "4293aea3aa6a087aeb438897dfb430dbf68954352334a837d5f99abab090bee0",
+    ".agents/just/rust.just": "a4e38560cfab21141b5a26c1bcd7471c780a87eb8f0c2caa54b261d58009a6b8"
   },
   "parts": {
     ".gitignore": {

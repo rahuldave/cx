@@ -10,6 +10,7 @@ import? 'rust/lint.just'
 import? 'rust/typecheck.just'
 import? 'rust/integration.just'
 import? 'rust/test.just'
+import? 'rust/docstring.just'
 
-# Every check of the rust profile that is installed: fmt-check, lint, typecheck, integration, test, coverage-check
-verify: fmt-check lint typecheck integration test coverage-check
+# Every check of the rust profile that is installed: fmt-check, lint, typecheck, integration, test, coverage-check, docstring-check
+verify: fmt-check lint typecheck integration test coverage-check docstring-check
