@@ -160,8 +160,10 @@ just install
 
 `just install` also installs the Git hooks of the commit gate. The commit gate
 is the set of steps that each commit must pass, and the hooks run it on each
-commit. `just check` runs all of these steps, and `just verify` is a quicker
-check. [AGENTS.md](AGENTS.md) lists each recipe.
+commit. Each clone needs its own hooks. When the hooks are missing,
+`just tools-check` names them `commit-hooks`. `just check` runs all the steps
+of the commit gate, and `just verify` is a quicker check.
+[AGENTS.md](AGENTS.md) lists each recipe.
 
 ## License
 
