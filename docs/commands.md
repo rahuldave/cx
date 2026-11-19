@@ -9,7 +9,7 @@ cx VERSION
 Conditional eXecution for linewise just commands.
 
 USAGE:
-    cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...
+    cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND [ARG]...
     cx graph
     cx lint
     cx --version
@@ -26,13 +26,13 @@ USAGE:
 ## Run a line
 
 ```bash
-cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...
+cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND [ARG]...
 ```
 
 The options come before `--`, and the command comes after it:
 
-- **`--in PATH`** names an input. Give it once for each file that the command reads. A line can have no input.
-- **`--out PATH`** names an output. Give it once for each file that the command writes. A line needs at least one output.
+- **`--in PATH`** names an input. Give it once for each file that the command reads. A line can have no input. cx uses a repeated path once.
+- **`--out PATH`** names an output. Give it once for each file that the command writes. A line needs at least one output. cx uses a repeated path once.
 - **`COMMAND [ARG]...`** is the command and its arguments. cx runs the program directly, without a shell. To use a pipe or a redirect, run `bash -c '...'`.
 
 A path is relative to the current folder. `just` runs a recipe in the folder of its `Justfile`, so a path in a cx line is relative to that folder.
@@ -52,7 +52,8 @@ Otherwise cx prints `up-to-date:` and the outputs to standard error, and exits w
 
 - **The command succeeds**, and each output exists. cx writes the new record.
 - **The command succeeds**, but an output is missing. cx stops with an error, and does not write the record.
-- **The command fails.** cx exits with the code of the command, and does not write the record. So the next run runs the command again.
+- **The command fails.** cx exits with the code of the command, and does not write the record. So the next run runs the command again. On Unix, a code has 8 bits. On a system with wider codes, such as Windows, cx keeps each bit of the code.
+- **A signal stops the command.** cx exits with 128 plus the number of the signal, as a shell does. For example, `SIGTERM` is signal 15, so cx exits with 143. cx does not write the record.
 
 An input that does not exist is an error, and cx does not run the command.
 
@@ -92,7 +93,7 @@ lint error: build:1: cx requires at least one --out PATH
 - A cx line has no `--out`, or no command after `--`.
 - A cx line has an option that cx does not know, or an `--in` or `--out` without a path.
 - A word that is not an option comes before `--`.
-- The line cannot be split into words, for example because a quote is not closed.
-- A cx line is in a script recipe. A script recipe starts with `#!` or has the attribute `[script]`. `just` gives such a recipe to one program as one file, so cx cannot run each line by itself.
+- A line whose first word is `cx` cannot be split into words, for example because a quote is not closed. A line whose first word is another program, such as `cxfoo`, is not a cx line, so `cx lint` does not check it.
+- A cx line is in a script recipe. A script recipe starts with `#!` or has the attribute `[script]` or `[script(...)]`. Another attribute, such as `[group("scripts")]`, does not make a script recipe. `just` gives such a recipe to one program as one file, so cx cannot run each line by itself.
 
 `cx lint` checks the form of the lines only. It does not run them. To check that a pipeline works, run it twice, and confirm the `up-to-date` lines on the second run.

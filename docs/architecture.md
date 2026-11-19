@@ -36,20 +36,20 @@ cx --in data/message.txt --out build/message.upper -- bash -c 'tr "[:lower:]" "[
 - one or more `--out PATH` declarations;
 - the command after `--`.
 
-At least one `--out` is required because the sorted output set is the key in
-`.cx/state.json`.
+`cx` uses a repeated `--in` or `--out` path once. It requires at least one
+`--out`, because the sorted output set is the key in `.cx/state.json`.
 
 The MVP freshness check compares:
 
-- whether a prior record exists for the output set;
+- whether an earlier record exists for the output set;
 - whether the command identity changed;
 - whether every declared output still exists and has the recorded content hash;
 - whether declared input content changed.
 
 For inputs, `cx` records `(mtime_ns, size, hash)`. If mtime and size match, it
-uses the previous hash as a fast path. If they differ, it hashes the file; a
-same-content rewrite refreshes the timestamp record without rerunning the
-command.
+uses the previous hash as a fast path. If they differ, it hashes the file. When a
+rewrite keeps the same content, `cx` refreshes the timestamps in the record and
+does not run the command again.
 
 When fresh, `cx` prints to stderr:
 
@@ -59,7 +59,9 @@ up-to-date: <outputs>
 
 When stale, `cx` runs the command. If the command succeeds, `cx` hashes the
 declared outputs and updates `.cx/state.json`. If the command fails, `cx`
-propagates failure and does not update the record.
+exits with the code of the command and does not update the record. If a signal
+stops the command, `cx` exits with 128 plus the number of the signal, as a shell
+does.
 
 ## Static View
 
@@ -85,7 +87,7 @@ The current static pass supports:
 
 ## Mixed Recipes
 
-`cx` is designed to coexist with plain recipes:
+`cx` works beside plain recipes:
 
 ```just
 prepare:
@@ -100,7 +102,7 @@ report: build
 
 `just` runs `prepare`, then `build`, then `report` according to recipe
 dependencies. Inside `build`, `cx` decides whether the copy command is stale.
-The plain `prepare` and `report` recipes are not skipped by `cx`.
+`cx` does not skip the plain `prepare` and `report` recipes.
 
 ## Current Limitations
 

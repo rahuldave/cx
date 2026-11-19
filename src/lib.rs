@@ -1,7 +1,7 @@
 //! cx: conditional execution for linewise `just` recipe lines.
 //!
-//! `cx [--in PATH]... --out PATH... -- COMMAND [ARG]...` runs COMMAND only when the
-//! inputs, the outputs or the command line changed since the last successful run, and
+//! `cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND [ARG]...` runs COMMAND only
+//! when the inputs, the outputs or the command line changed since the last successful run, and
 //! keeps the records in `.cx/state.json`. `cx graph` and `cx lint` read
 //! `just --dump --dump-format json` and report the cx lines of the Justfile.
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitCode};
+use std::process::{Command, ExitStatus};
 use std::time::UNIX_EPOCH;
 
 /// Runs cx with ARGS (without the program name) in the folder CWD, and returns the exit code.
@@ -21,7 +21,12 @@ use std::time::UNIX_EPOCH;
 /// With no argument, a first argument that is not UTF-8, `--help` or `-h`, it prints the
 /// help, and with `--version` or `-V` the version. `graph` and `lint` run the static
 /// analysis of the Justfile. Any other first argument starts a runtime invocation.
-pub fn run<I, S>(args: I, cwd: &Path) -> ExitCode
+///
+/// The code is 0 on success and 1 on an error of cx. When the command of a cx line fails, it
+/// is the code of the command, as `command_exit_code` gives it. The code is an `i32`, not an
+/// `ExitCode`, because an `ExitCode` holds only 8 bits. Some systems, such as Windows, give a
+/// command a wider code. Pass the code to `std::process::exit`.
+pub fn run<I, S>(args: I, cwd: &Path) -> i32
 where
     I: IntoIterator<Item = S>,
     S: Into<OsString>,
@@ -31,11 +36,11 @@ where
     match args.first().and_then(|arg| arg.to_str()) {
         None | Some("--help") | Some("-h") => {
             print_help();
-            ExitCode::SUCCESS
+            SUCCESS
         }
         Some("--version") | Some("-V") => {
             println!("cx {}", env!("CARGO_PKG_VERSION"));
-            ExitCode::SUCCESS
+            SUCCESS
         }
         Some("graph") => run_static(StaticMode::Graph, cwd),
         Some("lint") => run_static(StaticMode::Lint, cwd),
@@ -46,12 +51,19 @@ where
     }
 }
 
-/// The parsed arguments of a runtime invocation: `cx [--in PATH]... --out PATH... -- COMMAND`.
+/// The exit code of a success.
+const SUCCESS: i32 = 0;
+
+/// The exit code of an error of cx, and of a `cx lint` that finds a violation.
+const FAILURE: i32 = 1;
+
+/// The parsed arguments of a runtime invocation, which has the form
+/// `cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND`.
 #[derive(Debug, Clone)]
 struct RuntimeInvocation {
-    /// The paths of the `--in` options, in the order given.
+    /// The paths of the `--in` options, in the order given, each path once.
     inputs: Vec<String>,
-    /// The paths of the `--out` options, in the order given. At least one.
+    /// The paths of the `--out` options, in the order given, each path once. At least one.
     outputs: Vec<String>,
     /// The command after `--` and its arguments. Not empty.
     command: Vec<OsString>,
@@ -60,11 +72,20 @@ struct RuntimeInvocation {
 impl RuntimeInvocation {
     /// Parses the arguments after the program name.
     ///
+    /// It drops a path that a second `--in` gives again, and a path that a second `--out`
+    /// gives again. The record of the state keeps each path once, so a repeated path would
+    /// make the line stale on each run.
+    ///
     /// # Errors
     ///
-    /// Returns a message on an option that is not `--in`, `--out` or `--`, on a bare argument
-    /// before `--`, on an option with no value, on an option or path that is not UTF-8, when no
-    /// `--out` is given, and when no command follows `--`.
+    /// Returns a message in each of these cases:
+    ///
+    /// - an option that is not `--in`, `--out` or `--`;
+    /// - a bare argument before `--`;
+    /// - an option with no value;
+    /// - an option or path that is not UTF-8;
+    /// - no `--out`;
+    /// - no command after `--`.
     fn parse(args: Vec<OsString>) -> Result<Self, String> {
         let mut inputs = Vec::new();
         let mut outputs = Vec::new();
@@ -82,14 +103,14 @@ impl RuntimeInvocation {
                     let value = args
                         .get(index)
                         .ok_or_else(|| "--in requires a PATH operand".to_string())?;
-                    inputs.push(os_string_to_string(value, "--in PATH")?);
+                    push_unique(&mut inputs, os_string_to_string(value, "--in PATH")?);
                 }
                 "--out" => {
                     index += 1;
                     let value = args
                         .get(index)
                         .ok_or_else(|| "--out requires a PATH operand".to_string())?;
-                    outputs.push(os_string_to_string(value, "--out PATH")?);
+                    push_unique(&mut outputs, os_string_to_string(value, "--out PATH")?);
                 }
                 "--" => {
                     command.extend(args[index + 1..].iter().cloned());
@@ -270,7 +291,7 @@ struct JustRecipe {
 }
 
 /// Runs a runtime invocation, and prints the error and fails when it gives one.
-fn run_runtime(invocation: RuntimeInvocation, cwd: &Path) -> ExitCode {
+fn run_runtime(invocation: RuntimeInvocation, cwd: &Path) -> i32 {
     match run_runtime_inner(invocation, cwd) {
         Ok(code) => code,
         Err(error) => fail(error.to_string()),
@@ -278,7 +299,7 @@ fn run_runtime(invocation: RuntimeInvocation, cwd: &Path) -> ExitCode {
 }
 
 /// Runs `cx graph` or `cx lint`, and prints the error and fails when it gives one.
-fn run_static(mode: StaticMode, cwd: &Path) -> ExitCode {
+fn run_static(mode: StaticMode, cwd: &Path) -> i32 {
     match run_static_inner(mode, cwd) {
         Ok(code) => code,
         Err(error) => fail(error.to_string()),
@@ -292,16 +313,16 @@ fn run_static(mode: StaticMode, cwd: &Path) -> ExitCode {
 ///
 /// Returns the errors of `build_static_graph`, and `CxError::StaticJson` when the graph cannot
 /// be serialized.
-fn run_static_inner(mode: StaticMode, cwd: &Path) -> Result<ExitCode, CxError> {
+fn run_static_inner(mode: StaticMode, cwd: &Path) -> Result<i32, CxError> {
     let graph = build_static_graph(cwd)?;
 
     match mode {
         StaticMode::Graph => {
             let json = serde_json::to_string_pretty(&graph).map_err(CxError::StaticJson)?;
             println!("{json}");
-            Ok(ExitCode::SUCCESS)
+            Ok(SUCCESS)
         }
-        StaticMode::Lint if graph.violations.is_empty() => Ok(ExitCode::SUCCESS),
+        StaticMode::Lint if graph.violations.is_empty() => Ok(SUCCESS),
         StaticMode::Lint => {
             for violation in &graph.violations {
                 eprintln!(
@@ -309,16 +330,16 @@ fn run_static_inner(mode: StaticMode, cwd: &Path) -> Result<ExitCode, CxError> {
                     violation.recipe, violation.line, violation.message
                 );
             }
-            Ok(ExitCode::FAILURE)
+            Ok(FAILURE)
         }
     }
 }
 
 /// Runs `just --dump --dump-format json` in CWD and collects the cx lines and violations.
 ///
-/// In a shebang recipe, or a recipe with an attribute whose JSON text contains `script` (such
-/// as `[script]`), each line with a word `cx` is a violation. In a linewise recipe, a line
-/// whose first shell word, after an optional `@`, is `cx` gives a cx line or a violation.
+/// In a shebang recipe, or a recipe with the attribute `[script]` or `[script(...)]`, each line
+/// with a word `cx` is a violation. In a linewise recipe, a line whose first shell word, after
+/// an optional `@`, is `cx` gives a cx line or a violation.
 ///
 /// # Errors
 ///
@@ -388,8 +409,9 @@ enum StaticLineParse {
 /// Reads one body line of a linewise recipe.
 ///
 /// Leading whitespace and one `@` are dropped, and the line is split by shell rules. A line
-/// that does not split is a violation when its text starts with `cx`. When the first word is
-/// `cx`, the options are read. A bad option, no `--out` or no command is a violation.
+/// that does not split is a violation when its first word is `cx`, as `first_word_is_cx`
+/// finds it. When the first word is `cx`, the options are read. A bad option, no `--out` or
+/// no command is a violation.
 fn parse_static_cx_line(recipe: &str, line: usize, body: &str) -> StaticLineParse {
     let trimmed = body.trim_start();
     let without_quiet = trimmed
@@ -400,7 +422,7 @@ fn parse_static_cx_line(recipe: &str, line: usize, body: &str) -> StaticLinePars
     let tokens = match shell_words::split(without_quiet) {
         Ok(tokens) => tokens,
         Err(error) => {
-            if without_quiet.starts_with("cx") {
+            if first_word_is_cx(without_quiet) {
                 return StaticLineParse::Violation(LintViolation {
                     recipe: recipe.to_string(),
                     line,
@@ -448,6 +470,18 @@ fn parse_static_cx_line(recipe: &str, line: usize, body: &str) -> StaticLinePars
             message,
         }),
     }
+}
+
+/// True when the first shell word of TEXT is `cx`, for a line that does not split as a whole.
+///
+/// The first word ends at the first space, tab or newline outside quotes, as `shell_words`
+/// splits words. So the text before the first such character holds the whole first word, or
+/// the start of a quoted word that goes on past it. The function is true when that text splits
+/// into the one word `cx`. So `cxfoo 'open` and `cx-tool 'open` are not cx lines, and
+/// `cx --out 'open` and `"cx" --out 'open` are.
+fn first_word_is_cx(text: &str) -> bool {
+    let head = text.split([' ', '\t', '\n']).next().unwrap_or("");
+    matches!(shell_words::split(head).as_deref(), Ok([word]) if word == "cx")
 }
 
 /// Reads the options of a static cx line, the words after `cx`. It does not check that
@@ -554,17 +588,17 @@ fn render_expression_part(part: &Value) -> String {
 ///
 /// The line is stale when it has no record, its identity hash changed, an input hash changed,
 /// an output is missing or its hash changed, or the record holds a different number of paths
-/// than the line gives. A repeated `--in` or `--out` path therefore makes the line stale on
-/// each run. When it is up to date, the record is refreshed and the command does not run.
-/// When the command fails, its exit code cut to 8 bits is returned (1 when a signal stopped
-/// it), and the state is not changed.
+/// than the line gives. `RuntimeInvocation::parse` keeps each path once, so a repeated `--in`
+/// or `--out` path does not change the count. When it is up to date, the record is refreshed
+/// and the command does not run. When the command fails, the code of `command_exit_code` is
+/// returned, and the state is not changed.
 ///
 /// # Errors
 ///
 /// Returns an error when the state cannot be read, parsed or written, when an input cannot be
-/// stamped, when an output cannot be hashed, when the command cannot start, and
+/// stamped, when an output cannot be hashed, or when the command cannot start. Returns
 /// `CxError::MissingOutput` when the command succeeds but an output does not exist.
-fn run_runtime_inner(invocation: RuntimeInvocation, cwd: &Path) -> Result<ExitCode, CxError> {
+fn run_runtime_inner(invocation: RuntimeInvocation, cwd: &Path) -> Result<i32, CxError> {
     let state_path = cwd.join(".cx").join("state.json");
     let mut state = load_state(&state_path)?;
     let key = invocation.key();
@@ -620,7 +654,7 @@ fn run_runtime_inner(invocation: RuntimeInvocation, cwd: &Path) -> Result<ExitCo
         };
         state.insert(key, refreshed);
         save_state(&state_path, &state)?;
-        return Ok(ExitCode::SUCCESS);
+        return Ok(SUCCESS);
     }
 
     let status = Command::new(&invocation.command[0])
@@ -633,7 +667,7 @@ fn run_runtime_inner(invocation: RuntimeInvocation, cwd: &Path) -> Result<ExitCo
         })?;
 
     if !status.success() {
-        return Ok(ExitCode::from(status.code().unwrap_or(1) as u8));
+        return Ok(command_exit_code(status));
     }
 
     let output_hashes = collect_required_output_hashes(cwd, &invocation.outputs)?;
@@ -645,11 +679,47 @@ fn run_runtime_inner(invocation: RuntimeInvocation, cwd: &Path) -> Result<ExitCo
     state.insert(key, record);
     save_state(&state_path, &state)?;
 
-    Ok(ExitCode::SUCCESS)
+    Ok(SUCCESS)
 }
 
-/// Runs cx with the arguments and the current folder of the process.
-pub fn run_env() -> ExitCode {
+/// Returns the exit code that cx gives for a command that failed with STATUS.
+///
+/// When the command exited, it is the code of the command, with all its bits. Unix keeps only
+/// 8 bits of a code, and other systems, such as Windows, keep more. When a signal stopped the
+/// command, it is 128 plus the number of the signal, as a shell gives it. For example, it is
+/// 143 for `SIGTERM`. When the status gives neither, it is 1.
+fn command_exit_code(status: ExitStatus) -> i32 {
+    exit_code_from_parts(status.code(), exit_signal(&status))
+}
+
+/// Returns the exit code of a failed command from its CODE and the SIGNAL that stopped it.
+///
+/// A code of 0 becomes 1, so that a failure never gives a success.
+fn exit_code_from_parts(code: Option<i32>, signal: Option<i32>) -> i32 {
+    match (code, signal) {
+        (Some(0), _) => FAILURE,
+        (Some(code), _) => code,
+        (None, Some(signal)) => 128 + signal,
+        (None, None) => FAILURE,
+    }
+}
+
+/// Returns the number of the signal that stopped the process of STATUS, on Unix.
+#[cfg(unix)]
+fn exit_signal(status: &ExitStatus) -> Option<i32> {
+    use std::os::unix::process::ExitStatusExt;
+    status.signal()
+}
+
+/// Returns no signal, because systems other than Unix do not stop a process with a signal.
+#[cfg(not(unix))]
+fn exit_signal(_status: &ExitStatus) -> Option<i32> {
+    None
+}
+
+/// Runs cx with the arguments and the current folder of the process, and returns the exit
+/// code of `run`.
+pub fn run_env() -> i32 {
     run(
         env::args_os().skip(1),
         &env::current_dir().unwrap_or_else(|_| ".".into()),
@@ -659,7 +729,7 @@ pub fn run_env() -> ExitCode {
 /// Prints the version and the usage.
 fn print_help() {
     println!(
-        "cx {}\nConditional eXecution for linewise just commands.\n\nUSAGE:\n    cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...\n    cx graph\n    cx lint\n    cx --version",
+        "cx {}\nConditional eXecution for linewise just commands.\n\nUSAGE:\n    cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND [ARG]...\n    cx graph\n    cx lint\n    cx --version",
         env!("CARGO_PKG_VERSION")
     );
 }
@@ -693,16 +763,7 @@ fn collect_input_stamps(
             Some(old) if old.mtime_ns == partial.mtime_ns && old.size == partial.size => {
                 old.clone()
             }
-            Some(old) => {
-                let hash = hash_file(&path)?;
-                FileStamp {
-                    mtime_ns: partial.mtime_ns,
-                    size: partial.size,
-                    hash,
-                }
-                .reuse_hash_if_same(old)
-            }
-            None => FileStamp {
+            _ => FileStamp {
                 mtime_ns: partial.mtime_ns,
                 size: partial.size,
                 hash: hash_file(&path)?,
@@ -791,21 +852,6 @@ impl PartialStamp {
             mtime_ns,
             size: metadata.len(),
         })
-    }
-}
-
-impl FileStamp {
-    /// Returns this stamp unchanged: when the hashes are equal it copies OLD's equal hash
-    /// string, so it has no effect.
-    fn reuse_hash_if_same(self, old: &FileStamp) -> Self {
-        if self.hash == old.hash {
-            Self {
-                hash: old.hash.clone(),
-                ..self
-            }
-        } else {
-            self
-        }
     }
 }
 
@@ -904,6 +950,13 @@ fn resolve(cwd: &Path, path: &str) -> PathBuf {
     cwd.join(path)
 }
 
+/// Adds VALUE to the end of VALUES when VALUES does not hold it yet.
+fn push_unique(values: &mut Vec<String>, value: String) {
+    if !values.contains(&value) {
+        values.push(value);
+    }
+}
+
 /// References to VALUES, sorted.
 fn sorted(values: &[String]) -> Vec<&String> {
     let mut values: Vec<&String> = values.iter().collect();
@@ -928,17 +981,23 @@ fn display_os(value: &OsString) -> String {
     value.to_string_lossy().into_owned()
 }
 
-/// True when the JSON text of an attribute contains `script`, as `[script]` does.
+/// True when one of ATTRIBUTES is `[script]` or `[script(...)]`.
+///
+/// The dump gives `[script]` as `{"script": null}` and `[script("sh")]` as
+/// `{"script": {...}}`. A bare string `"script"` also counts. Another attribute does not
+/// count, even when its argument holds the word, such as `[group("scripts")]`.
 fn has_script_attribute(attributes: &[Value]) -> bool {
-    attributes
-        .iter()
-        .any(|attribute| attribute.to_string().contains("script"))
+    attributes.iter().any(|attribute| match attribute {
+        Value::String(name) => name == "script",
+        Value::Object(map) => map.contains_key("script"),
+        _ => false,
+    })
 }
 
 /// Prints MESSAGE with the prefix `cx: ` on stderr, and returns a failure.
-fn fail(message: String) -> ExitCode {
+fn fail(message: String) -> i32 {
     eprintln!("cx: {message}");
-    ExitCode::FAILURE
+    FAILURE
 }
 
 /// An error of cx. Its `Display` gives the message that cx prints.
@@ -1059,3 +1118,70 @@ impl std::fmt::Display for CxError {
 }
 
 impl std::error::Error for CxError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exit_code_keeps_every_bit_of_the_code() {
+        assert_eq!(exit_code_from_parts(Some(3), None), 3);
+        assert_eq!(exit_code_from_parts(Some(256), None), 256);
+        assert_eq!(exit_code_from_parts(Some(-1073741819), None), -1073741819);
+    }
+
+    #[test]
+    fn exit_code_of_a_signal_is_128_plus_the_signal() {
+        assert_eq!(exit_code_from_parts(None, Some(15)), 143);
+        assert_eq!(exit_code_from_parts(None, Some(9)), 137);
+    }
+
+    #[test]
+    fn exit_code_of_a_failure_is_never_0() {
+        assert_eq!(exit_code_from_parts(Some(0), None), 1);
+        assert_eq!(exit_code_from_parts(None, None), 1);
+    }
+
+    #[test]
+    fn parse_keeps_each_path_once() {
+        let args = [
+            "--in", "a", "--in", "b", "--in", "a", "--out", "o", "--out", "o", "--", "x",
+        ];
+        let invocation =
+            RuntimeInvocation::parse(args.iter().map(OsString::from).collect()).expect("parse");
+        assert_eq!(invocation.inputs, ["a", "b"]);
+        assert_eq!(invocation.outputs, ["o"]);
+    }
+
+    #[test]
+    fn first_word_is_cx_reads_the_shell_word() {
+        assert!(first_word_is_cx("cx --out 'open"));
+        assert!(first_word_is_cx("\"cx\" --out 'open"));
+        assert!(!first_word_is_cx("cxfoo 'open"));
+        assert!(!first_word_is_cx("cx-tool 'open"));
+        assert!(!first_word_is_cx("'cx foo' 'open"));
+        assert!(!first_word_is_cx("\"cx 'open"));
+        assert!(!first_word_is_cx(""));
+        assert!(first_word_is_cx("cx\t--out 'open"));
+        // A no-break space is part of a shell word, so the word is "cx\u{a0}x", not cx.
+        assert!(!first_word_is_cx("cx\u{a0}x 'open"));
+    }
+
+    #[test]
+    fn script_attribute_is_matched_by_name() {
+        let attributes = |text: &str| -> Vec<Value> { serde_json::from_str(text).unwrap() };
+        assert!(has_script_attribute(&attributes(r#"[{"script": null}]"#)));
+        assert!(has_script_attribute(&attributes(
+            r#"[{"script": {"command": "sh"}}]"#
+        )));
+        assert!(has_script_attribute(&attributes(r#"["script"]"#)));
+        assert!(!has_script_attribute(&attributes(
+            r#"[{"group": "scripts"}]"#
+        )));
+        assert!(!has_script_attribute(&attributes(r#"[{"doc": "script"}]"#)));
+        assert!(!has_script_attribute(&attributes(r#"["no-script"]"#)));
+        assert!(!has_script_attribute(&attributes(
+            r#"[null, 1, ["script"]]"#
+        )));
+    }
+}

@@ -88,7 +88,7 @@ repository. See [docs/quickstart.md](docs/quickstart.md).
 Run or skip one declared command:
 
 ```bash
-cx [--in PATH]... [--out PATH]... -- COMMAND [ARG]...
+cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND [ARG]...
 ```
 
 Inspect linewise `cx` calls in the current `Justfile`:
@@ -103,7 +103,7 @@ Check the current `Justfile` for the MVP lint rules:
 cx lint
 ```
 
-At least one `--out` is required. The output set is the key for the staleness
+`cx` requires at least one `--out`. The output set is the key for the staleness
 record.
 
 ## Documentation
