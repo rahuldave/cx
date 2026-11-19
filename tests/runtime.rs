@@ -222,3 +222,138 @@ fn existing_options_still_work_beside_version_flag() {
     assert!(!unknown.status.success());
     assert!(String::from_utf8_lossy(&unknown.stderr).contains("unknown cx option: --bogus"));
 }
+
+#[test]
+fn repeated_in_and_out_paths_are_up_to_date_on_the_second_run() {
+    let temp = TempDir::new().expect("tempdir");
+    write(&temp.path().join("input.txt"), "alpha\n");
+
+    let args = [
+        "--in",
+        "input.txt",
+        "--in",
+        "input.txt",
+        "--out",
+        "output.txt",
+        "--out",
+        "output.txt",
+        "--",
+        "sh",
+        "-c",
+        "cat input.txt > output.txt && printf run >> runs.txt",
+    ];
+
+    assert!(cx(&temp, &args).status.success());
+    let second = cx(&temp, &args);
+    assert!(
+        second.status.success(),
+        "stderr was: {}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&second.stderr).contains("up-to-date: output.txt\n"),
+        "stderr was: {}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    assert_eq!(read(&temp.path().join("runs.txt")), "run");
+
+    // The line with each path once is the same line, so it shares the record.
+    let single = cx(
+        &temp,
+        &[
+            "--in",
+            "input.txt",
+            "--out",
+            "output.txt",
+            "--",
+            "sh",
+            "-c",
+            "cat input.txt > output.txt && printf run >> runs.txt",
+        ],
+    );
+    assert!(single.status.success());
+    assert_eq!(read(&temp.path().join("runs.txt")), "run");
+}
+
+#[test]
+fn failed_command_passes_its_exit_code_through() {
+    let temp = TempDir::new().expect("tempdir");
+
+    let output = cx(
+        &temp,
+        &["--out", "output.txt", "--", "sh", "-c", "exit 200"],
+    );
+
+    assert_eq!(output.status.code(), Some(200));
+    assert!(!temp.path().join(".cx").join("state.json").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn command_stopped_by_a_signal_gives_128_plus_the_signal() {
+    let temp = TempDir::new().expect("tempdir");
+
+    let term = cx(
+        &temp,
+        &["--out", "output.txt", "--", "sh", "-c", "kill -TERM $$"],
+    );
+    assert_eq!(term.status.code(), Some(128 + 15));
+
+    let kill = cx(
+        &temp,
+        &["--out", "output.txt", "--", "sh", "-c", "kill -KILL $$"],
+    );
+    assert_eq!(kill.status.code(), Some(128 + 9));
+}
+
+#[test]
+fn touched_input_with_the_same_content_keeps_the_hash_and_takes_the_new_time() {
+    let temp = TempDir::new().expect("tempdir");
+    let input = temp.path().join("input.txt");
+    write(&input, "alpha\n");
+
+    let args = [
+        "--in",
+        "input.txt",
+        "--out",
+        "output.txt",
+        "--",
+        "sh",
+        "-c",
+        "cat input.txt > output.txt && printf run >> runs.txt",
+    ];
+    assert!(cx(&temp, &args).status.success());
+
+    let state_path = temp.path().join(".cx").join("state.json");
+    let stamp = |state: &str| -> serde_json::Value {
+        let state: serde_json::Value = serde_json::from_str(state).expect("state json");
+        state["output.txt"]["inputs"]["input.txt"].clone()
+    };
+    let before = stamp(&read(&state_path));
+
+    let file = fs::File::options().write(true).open(&input).expect("open");
+    file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000))
+        .expect("set mtime");
+    drop(file);
+
+    let output = cx(&temp, &args);
+    assert!(output.status.success());
+    assert_eq!(read(&temp.path().join("runs.txt")), "run");
+
+    let after = stamp(&read(&state_path));
+    assert_eq!(after["hash"], before["hash"]);
+    assert_eq!(after["mtime_ns"], 1_000_000u64 * 1_000_000_000);
+}
+
+#[test]
+fn help_declares_out_as_required() {
+    let temp = TempDir::new().expect("tempdir");
+
+    let output = cx(&temp, &["--help"]);
+    let help = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        help.contains("cx [--in PATH]... --out PATH [--out PATH]... -- COMMAND [ARG]..."),
+        "help was: {help}"
+    );
+}
