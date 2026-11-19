@@ -18,6 +18,11 @@ coverage-check:
     just --justfile {{quote(justfile())}} rust coverage-check
     jlog step coverage-check
 
+# just docstring-check for each language that has it: rust
+docstring-check:
+    just --justfile {{quote(justfile())}} rust docstring-check
+    jlog step docstring-check
+
 # just fmt for each language that has it: rust
 [positional-arguments]
 fmt *args:
@@ -74,10 +79,6 @@ tools-check:
 diff-check:
     git diff --check "$(git rev-parse -q --verify HEAD || git hash-object -t tree /dev/null)"
     jlog step diff-check
-
-# No profile or role of this repository has docstring-check, so the step logs a skip
-docstring-check:
-    jlog skip docstring-check "no docstring check in this repository"
 
 # Everything a commit must pass: each step, then the pass of jlog for the worktree
 check: tools-check release-check fmt-check lint typecheck test integration coverage-check docstring-check docs-check prose-check diff-check

@@ -63,18 +63,17 @@ jnterfaces wrote the files in `.agents/`, `.claude/` and `.codex/`, and the
 blocks at the top of `Justfile`, `.gitignore` and this file.
 `.agents/stack.json` records what is installed:
 
-- The `rust` profile, with the tools `lint`, `typecheck`, `test` and
-  `integration`.
+- The `rust` profile, with the tools `lint`, `typecheck`, `test`,
+  `integration` and `docstring`.
 - The roles `tasker`, `prose`, `cx` and `jagt-protocol`.
 
-Two parts of the stack are left out:
+One part of the stack is left out: the `docs` role. cx has its own docs
+site and the recipes `docs`, `docs-check` and `docs-build`. The role defines
+the same recipes, and `just install` stops on a recipe that is defined twice.
 
-- **The `docstring` tool.** Its step `docstring-check` fails on each item
-  with no doc comment. 114 items of `src/` have no doc comment. Add the doc
-  comments first, then run `just install docstring`.
-- **The `docs` role.** cx has its own docs site and the recipes `docs`,
-  `docs-check` and `docs-build`. The role defines the same recipes, and
-  `just install` stops on a recipe that is defined twice.
+The step `docstring-check` of the `docstring` tool fails on each item of
+`src/` with no doc comment, public or private. So give each new item a doc
+comment that says what it does.
 
 To install the same set again, run `just install`. To get new versions of the
 packages, run `just install --update`. `just install --check` compares the
@@ -134,8 +133,7 @@ The recipes of cx:
 `just check` runs every step of the commit gates, in this order. The steps are `tools-check`,
 `release-check`, `fmt-check`, `lint`, `typecheck`, `test`, `integration`,
 `coverage-check`, `docstring-check`, `docs-check`, `prose-check` and
-`diff-check`. cx has no `docstring` tool, so `docstring-check` only logs a
-skip. Every commit must pass `just check`. The Git hooks of the tasker role
+`diff-check`. Every commit must pass `just check`. The Git hooks of the tasker role
 run the commit gate.
 
 ## CI
