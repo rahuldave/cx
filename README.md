@@ -135,6 +135,34 @@ Known follow-ups:
   rather than using the current concrete argv identity;
 - add configuration for lint strictness and future `.cx/config.toml` behavior.
 
+## Develop
+
+`cx` uses the stack of [jnterfaces](https://github.com/rahuldave/jnterfaces).
+The stack is the shared recipes for `just` and the skills of the agents, and
+the installer of jnterfaces writes them into the repository. `cx` uses the
+`rust` profile of jnterfaces, which gives the recipes for Rust.
+
+You need `git`, `gh`, `just`, `uv`, `jlog`, `gest`, `jagt`, `rustup` and `cx`
+itself. The page
+[Start a project](https://github.com/rahuldave/jnterfaces/blob/main/docs/new-project.md)
+of jnterfaces says where to get each tool. `just install` installs the rest of
+the Rust tools, such as the toolchain and `cargo-llvm-cov`. `just tools-check`
+names each program that is missing.
+
+After you clone the repository, run these commands in the clone. The first one
+installs `cx` from the clone.
+
+```bash
+cargo install --locked --path .
+just setup
+just install
+```
+
+`just install` also installs the Git hooks of the commit gate. The commit gate
+is the set of steps that each commit must pass, and the hooks run it on each
+commit. `just check` runs all of these steps, and `just verify` is a quicker
+check. [AGENTS.md](AGENTS.md) lists each recipe.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

@@ -1,59 +1,26 @@
-set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+# begin lines of jnterfaces, the installer, from jnterfaces at a0cb68d.
+# Last written to Justfile by `install_stack.py --target . --profile rust --defaults integration`. The record is parts."Justfile" in .agents/stack.json.
+import? '.agents/install.just'
+export JLOG_RUN := env("JLOG_RUN", uuid())
+# end lines of jnterfaces. They stay while the project keeps .agents/stack.json.
+
+# The recipes of cx. The block of jnterfaces above imports .agents/install.just, which gives just install, and the
+# recipes of the rust profile and of the roles, for example setup, build, fmt, fmt-check, lint, typecheck, test,
+# integration, coverage-check, docstring-check, diff-check, tools-check, check, ci, release, release-check,
+# prose-check, review, update-docs and rust::version. AGENTS.md lists them. The index sets the
+# shell of the Justfile to jlog. Each name below is cx's own, and the index leaves it out.
 
 default: verify
 
-setup:
-    cargo fetch
-
-fmt path="":
-    cargo fmt --all
-
-fmt-check:
-    cargo fmt --all --check
-
-lint:
-    cargo clippy --all-targets --all-features -- -D warnings
-
-typecheck:
-    cargo check --all-targets --all-features
-
+# The static check of the code, as an alias of the step typecheck
 static: typecheck
 
-build:
-    cargo build
-
-test:
-    cargo test --all-targets --all-features
-
+# Run the binary once, as a smoke test of the build
 smoke:
     cargo run -- --help
 
-diff-check:
-    git diff --check
-
-verify: fmt-check lint test smoke diff-check
-
-# Every check of the repository: the release version, verify, then the docs site. CI runs each of them
-check: release-check verify docs-check
-
-# The release tags. scripts/release_tag.py is a copy of .agents/skills/gpa/scripts/release_tag.py of
-# agent_gest_git_skills at the commit 799a44b. The job release of verify.yml runs just release on each push to main.
-# The script runs just <profile>::version for each name of the key profiles of .agents/stack.json, here rust, so the
-# tag is v plus the version of Cargo.toml.
-release_tag := "uv run --no-project --quiet --no-python-downloads --python '>=3.9' python scripts/release_tag.py"
-
-# rust::version prints the version of Cargo.toml. The rust profile of jnterfaces gives the same recipe. When cx
-# installs that profile, take out this line and scripts/rust.just, because just stops on a module defined twice
-mod rust 'scripts/rust.just'
-
-# Tag HEAD with v plus the version of Cargo.toml, push the tag and check it. Takes --dry-run first
-[positional-arguments]
-release *args:
-    @{{release_tag}} "$@"
-
-# Fail when the version of Cargo.toml is below the last tag or the bump that the commits ask for. It needs no network
-release-check:
-    {{release_tag}} --check
+# The quick local check: the format, the lint, the tests, the smoke test and the whitespace of the diff
+verify: fmt-check lint test integration smoke diff-check
 
 # Build the release binary for TARGET, a Rust target triple, and pack it as dist/cx-TARGET.tar.gz with cx at its top
 # level, plus dist/cx-TARGET.tar.gz.sha256. The job binaries of verify.yml runs it, and scripts/install.sh installs it
@@ -65,13 +32,14 @@ dist target:
     cd dist && shasum -a 256 cx-{{target}}.tar.gz > cx-{{target}}.tar.gz.sha256
 
 # The docs site in docs/, which smalldocs builds. The workflow docs-site.yml publishes it to https://rahuldave.com/cx/
-# The docs role of jnterfaces defines the same recipe names. If cx installs that role, take out these recipes first,
-# because just stops on a recipe defined twice
+# The docs role of jnterfaces defines the same recipe names, so cx leaves that role out: just install stops on a
+# recipe defined twice
 smalldocs := "uvx --quiet smalldocs@0.5.12"
 
 # Check the pages of the site: ignored keys, Pandoc-only syntax and broken links
 docs-check:
     {{smalldocs}} check docs
+    jlog step docs-check
 
 # Build the site, serve it on localhost, and rebuild it on each change
 docs:

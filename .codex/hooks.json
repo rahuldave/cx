@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "sh -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); \"$ROOT/.codex/hooks/session-start.sh\"'",
-            "statusMessage": "Loading GitButler workflow context"
+            "statusMessage": "Loading Gest workflow context"
           }
         ]
       }
@@ -18,8 +18,35 @@
         "hooks": [
           {
             "type": "command",
+            "command": "sh -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); \"$ROOT/.codex/hooks/gate-guard.sh\"'",
+            "statusMessage": "Checking for commands that go around the commit gate"
+          },
+          {
+            "type": "command",
             "command": "sh -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); \"$ROOT/.codex/hooks/raw-git-write-guard.sh\"'",
-            "statusMessage": "Checking GitButler VCS policy"
+            "statusMessage": "Checking the commit rules of the tasker variant"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); \"$ROOT/.codex/hooks/record-result.sh\"'",
+            "statusMessage": "Writing the record of the result for the commit gate"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; F=\"$ROOT/.agents/skills/nossaifd/scripts/prose_gate.py\"; [ -f \"$F\" ] || { exit 0; }; uv run --no-project --quiet --python \">=3.11\" python \"$F\" start \"$ROOT\" || true'",
+            "timeout": 30
           }
         ]
       }
@@ -29,8 +56,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh -c 'ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd); \"$ROOT/.codex/hooks/gitbutler-snapshot.sh\"'",
-            "timeout": 30
+            "command": "sh -c 'ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; F=\"$ROOT/.agents/skills/nossaifd/scripts/prose_gate.py\"; [ -f \"$F\" ] || { echo {}; exit 0; }; uv run --no-project --quiet --python \">=3.11\" python \"$F\" hook \"$ROOT\" || echo {}'",
+            "timeout": 60
           }
         ]
       }

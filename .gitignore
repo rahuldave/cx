@@ -1,3 +1,10 @@
+# begin lines of jnterfaces, the installer, from jnterfaces at a0cb68d.
+# Last written to .gitignore by `install_stack.py --target . --profile rust --defaults integration`. The record is parts.".gitignore" in .agents/stack.json.
+.agents/stack-log.jsonl
+.agents/stack-pending.json
+.agents/log/
+# end lines of jnterfaces. They stay while the project keeps .agents/stack.json.
+
 /target/
 
 # cx runtime/cache state
@@ -21,3 +28,6 @@ docs/_site/
 
 # The archives that just dist makes
 /dist/
+
+# Python caches of the scripts of the stack, such as the record hook of the tasker role
+__pycache__/
