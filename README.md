@@ -50,13 +50,13 @@ it puts `cx` in `~/.local/bin` and prints the version. Releases have archives fo
 and for Linux on x86_64 and arm64. To pick a release or a folder, give `--tag` or `--dir`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.sh | sh -s -- --tag v0.2.2 --dir ~/bin
+curl -fsSL https://raw.githubusercontent.com/rahuldave/cx/main/scripts/install.sh | sh -s -- --tag v0.2.3 --dir ~/bin
 ```
 
 To build from source, use Cargo, the package manager of Rust:
 
 ```bash
-cargo install --locked --git https://github.com/rahuldave/cx --tag v0.2.2
+cargo install --locked --git https://github.com/rahuldave/cx --tag v0.2.3
 ```
 
 Check that the folder of `cx` is on your `PATH`:
